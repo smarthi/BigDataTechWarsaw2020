@@ -1,0 +1,398 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Snorkel BeamBell: Weak Supervision on Apache Flink</title>
+
+    <meta name="description" content="Snorkel BeamBell: Weak Supervision on Apache Flink">
+    <meta name="author" content="Suneel Marthi">
+
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+
+    <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css">
+		<link rel="stylesheet" href="css/reveal.css">
+		<link rel="stylesheet" href="css/theme/bbuzz17.css">
+
+		<!-- Theme used for syntax highlighting of code -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- Printing and PDF exports -->
+		<script>
+			var link = document.createElement( 'link' );
+			link.rel = 'stylesheet';
+			link.type = 'text/css';
+			link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+			document.getElementsByTagName( 'head' )[0].appendChild( link );
+		</script>
+    <!--[if lt IE 9]> <script src="lib/js/html5shiv.js"></script> <![endif]-->
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+				<section data-background-image="img/warsaw.png">
+          <br/>
+          <br/>
+          <br/>
+          <h3>Snorkel BeamBell: Weak Supervision on Apache Flink</h3>
+          <br/>
+          <p>Suneel Marthi</p>
+          <p style="font-size: 60%">February 27, 2020<br/>
+             Big Data Technology Summit, Warsaw, Poland</p>
+        </section>
+		<section data-background-image="img/ZsMwlm2.jpg">
+          <h3>$WhoAmI</h3>
+          <h6 style='text-align: left; font-size: 80%;'>Suneel Marthi <br/><span style="font-size: 60%"><i class="fa fa-twitter" aria-hidden="true"></i> @suneelmarthi</span></h6>
+          <ul style='font-size: 70%;'>
+            <li>Member of Apache Software Foundation</li>
+            <li>Committer and PMC on Apache Mahout, Apache OpenNLP, Apache Streams</li>
+          </ul>
+        </section>
+        <section data-background-image="img/ZsMwlm2.jpg">
+          <h3>Agenda</h3>
+          <ul>
+            <li>What is Weak Supervision ?</li>
+            <li>Why is it Needed?</li>
+            <li>What problem does it solve?</li>
+            <li>What are Learning Functions?</li>
+            <li>Overview of Apache Beam</li>
+          </ul>
+        </section>
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+          <h3>OSS Tools</h3>
+          <ul>
+            <li>Snorkel - Framework for Programmatically Building and Managing Training Data</li>
+            <li>Apache Beam - Unified model for defining both batch and streaming data-parallel processing pipelines</li>
+            <li>Apache Flink - distributed processing engine for <b><span style="color: red">stateful</span></b> computations over data streams.</li>
+          </ul>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <h3>Problem of Labeled Training Data</h3>
+        </section>
+                <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+                    <p style='text-align: left'>Typical Supervised Approach</p>
+                    <pre><code data-trim data-noescape>
+Set of Datapoints, x ∈ X
+
+Set of K classes, y ∈ Y = 1,2, ...., K
+
+Learn a classifier, h : X → Y
+            </code></pre>
+         </section>
+         <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+
+         <pre><code data-noescape>
+Get a set of Ground Truth labels, T - (x1,y1),...,(xN,yN)
+
+Traditionally annotated by Subject Matter Experts
+
+Minimize Aggregated loss on Training, eg: SGD (or a loss function)
+         </code></pre>
+                </section>
+
+        <section data-background-image="img/ZsMwlm2-yellowish.jpg">
+            <h3>Problems with this Approach</h3>
+            <ul>
+              <li>Labeling and managing training datasets by hand is one of the biggest bottlenecks in machine learning</li>
+              <li>Professionals are not grad students to accept burritos or T-shirts as remuneration for labor</li>
+              <li>Creation of labeled training data becomes prohibitively expensive and impossible when dealing with large datasets</li>
+            </ul>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+           <h3>Insufficient Labeled Data</h3>
+            <ul>
+                <li>Lack of Initial labeled training data to kick start Machine Learning models</li>
+                <li>Lack of training data available over time unlike the big Internet companies</li>
+                <li>Maybe many years in order to accummulate sufficient training data</li>
+                <li>Modern Deep Learning Models need massive sets of handle-labeled data</li>
+            </ul>
+        </section>
+        <section data-background-image="img/ZsMwlm2-yellowish.jpg">
+            <h3>Lack of Subject Matter Expertise</h3>
+            <ul>
+                <li>Labeling training data requires necessary subject matter experise</li>
+                <li>Labeling and managing training datasets by hand is one of the biggest bottlenecks in machine learning.</li>
+                <li>Creation of labeled training data becomes prohibitively expensive and impossible when dealing with large datasets</li>
+            </ul>
+            <p style='font-size: 45%;'>For eg: Having to deal with datasets at Google Scale</p>
+        </section>
+
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <h3>Possible Solutions</h3>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <p style='text-align: left'>Ways of generating labeled data</p>
+            <div style="background: #c9c9c9;">
+                <img src='img/how_to_get_labeling_data.png' style='margin: 0px, 20px, 0px, 20px; border: none; background: none;box-shadow: none; '/>
+            </div>
+            <p style='font-size: 35%;'>Source: https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html</p>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <h3>What is Weak Supervision ?</h3>
+            <p style='text-align: left'>Weak supervision is about leveraging higher-level noisier input from subject matter experts (SMEs).</p>
+        </section>
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <p style='text-align: left'>Same Objective as Supervised setting, however instead of Ground Truth data we have:</p>
+            <div style="background: #c9c9c9;">
+                <img src='img/weak-super-formulation.png' style='margin: 0px, 20px, 0px, 20px; border: none; background: none;box-shadow: none; '/>
+            </div>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <h3>Weak Labels</h3>
+            <ul>
+                <li>Intent is to decrease the cost and increase the efficiency of human efforts expended
+                    in hand-labeling data.</li>
+                <li>Leverage Subject Matter Expertise to get less precise input to create heuristic rules for labeling data</li>
+            </ul>
+            <p style='font-size: 35%;'>"Data Programming: Creating Large Training Sets, Quickly" - Alexander Ratner, Christopher De Sa, Sen Wu, Daniel Selsam, Christopher Ré https://arxiv.org/pdf/1605.07723v3.pdf</p>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+            <h3>Types of Weak Labels</h3>
+        </section>
+        <section data-background-image="img/ZsMwlm2-yellowish.jpg">
+            <h3>Imprecise Labels</h3>
+            <p style='text-align: left'>Use a higher level, less precise input from Subject Matter Experts to create heuristic rules</p>
+            <p style='text-align: left'>Eg: For Spam classification in YouTube comments: </p>
+            <p style='text-align: left'>
+            <pre><code data-trim data-noescape>
+return SPAM if 'contact us' in text
+         </code></pre>
+        </section>
+        <section data-background-image="img/ZsMwlm2-redish.jpg">
+            <h4>Leverage 3rd party models to generate labels</h4>
+            <p style='text-align: left'>Eg: Use a Sentiment Classifier for 'Spam/Ham' classification</p>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <p style='text-align: left'>Ways of generating labeled data</p>
+            <div style="background: #c9c9c9;">
+                <img src='img/weak-supervision-process.png' style='margin: 0px, 20px, 0px, 20px; border: none; background: none;box-shadow: none; '/>
+            </div>
+            <p style='font-size: 35%;'>Source: https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html</p>
+        </section>
+
+<!--        <section data-background-image="img/ZsMwlm2-yellowish.jpg">-->
+<!--            <h3>Learning a Unified Weak Supervision Model</h3>-->
+<!--            <p style='text-align: left'>Given a set of Weak </p>-->
+<!--            <ul>-->
+<!--                <li>Labeling training data requires necessary subject matter experise</li>-->
+<!--                <li>Labeling and managing training datasets by hand is one of the biggest bottlenecks in machine learning.</li>-->
+<!--                <li>Creation of labeled training data becomes prohibitively expensive and impossible when dealing with large datasets</li>-->
+<!--            </ul>-->
+<!--            <p style='font-size: 45%;'>For eg: Having to deal with datasets at Google Scale</p>-->
+<!--        </section>-->
+
+        <section data-background-image="img/ZsMwlm2-redish.jpg">
+            <h3>Introducing Snorkel</h3>
+            <ul>
+               <li>System for programmatically building and managing training datasets without manual labeling</li>
+               <li>Develop training datasets in hours/days, as opposed to hand-lableling over several weeks</li>
+            </ul>
+            <p style='font-size: 35%;'>See https://www.snorkel.org</p>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-yellowish.jpg">
+            <img src='img/Jeff_Dean.png' style='height: auto; margin: 0px, 0px, 0px, 0px; border: none; background: none;box-shadow: none; '/>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+            <h3>Labeling Functions</h3>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-yellowish.jpg">
+            <p style='text-align: left'>Labeling Functions are one of the core operators for building and managing training datasets programmatically in Snorkel</p>
+            <img src='img/labeling_function.png' style='height: auto; margin: 0px, 0px, 0px, 0px; border: none; background: none;box-shadow: none; '/>
+            <p style='font-size: 35%;'>Source: https://hazyresearch.github.io/snorkel/blog/ws_blog_post.html</p>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <h4>Labeling Function for Keyword Match</h4>
+            <pre><code data-trim data-noescape>
+@labeling_function()
+def lf_keyword_my(x):
+    "Many spam comments talk about 'my channel', 'my video', etc."
+    return SPAM if "my" in x.text.lower() else ABSTAIN
+</code></pre>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+            <h4>Labeling Function with Regex Match</h4>
+            <pre><code data-trim data-noescape>
+@labeling_function()
+def lf_regex_check_out(x):
+    "Spam comments say 'check out my video', 'check it out', etc."
+    return SPAM if re.search(r"check.*out", x.text, flags=re.I) else ABSTAIN
+</code></pre>
+          </section>
+
+           <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+                    <h4>Labeling Function with Heuristics</h4>
+                    <pre><code data-trim data-noescape>
+@labeling_function()
+def lf_short_comment(x):
+    "Non-spam comments are often short, such as 'cool video!'."
+    return NOT_SPAM if len(x.text.split()) < 5 else ABSTAIN
+</code></pre>
+                </section>
+
+                <section data-background-image="img/ZsMwlm2-blueish.jpg">
+                    <h4>Labeling Function with 3rd Party models</h4>
+                    <pre><code data-trim data-noescape>
+@labeling_function()
+def lf_textblob_polarity(x):
+    """
+    We use a third-party sentiment classification model, TextBlob.
+
+    We combine this with the heuristic that non-spam comments are often positive.
+    """
+    return NOT_SPAM if TextBlob(x.text).sentiment.polarity > 0.3 else ABSTAIN
+</code></pre>
+                </section>
+
+        <section data-background-image="img/ZsMwlm2-yellowish.jpg">
+            <p style='text-align: left'>Apply the Labeling Functions to unlabeled data to generate a Label Matrix</p>
+            <img src='img/label_matrix.png' style='height: auto; margin: 0px, 0px, 0px, 0px; border: none; background: none;box-shadow: none; '/>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+            <ul>
+               <li>Output of labeling  functions may overlap/conflict, given the unknown accuracies and correlations with LFs.</li>
+               <li>Use a LabelModel to automatically estimate the accuracies and correlations, and produce a final set of integrated training labels</li>
+            </ul>
+         </section>
+
+        <section data-background-image="img/ZsMwlm2-redish.jpg">
+            <h3>Finally, Train a Classifier</h3>
+            <ul>
+               <li>Ultimate Goal of Weak Supervision is to create training dataset</li>
+               <li>This dataset can now be plugged into any ML Framework like Keras, PyTorch etc. to further train Deep Learning Models</li>
+            </ul>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-purpleish.jpg">
+            <h4>How to Scale - Batch or Stream ?</h4>
+            <br/>
+            <p style='text-align: left'>"Batch is an extension of Streaming, except when Streaming is an extension of Batch"</p>
+            <p style='text-align: right'>-- Shannon Quinn, Apache Mahout</p>
+        </section>
+        <section data-background-image="img/ZsMwlm2-redish.jpg">
+            <h4>Spark or Flink ?</h4>
+            <br/>
+            <p style='text-align: left'>"Spark Streaming is for people who want to operate on their streams using Batch idioms.<br/>
+                Flink Batch is for people who want to operate on their batches using Streaming idioms."</p>
+            <p style='text-align: right'>-- Joey Frazee, Apache NiFi</p>
+        </section>
+
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+            <h3>What is Apache Beam?</h3>
+            <ul>
+                <li>Agnostic (unified Batch + Stream) programming model </li>
+                <li>Java, Python, Go SDKs</li>
+                <li>Runners for Dataflow</li>
+                <ul>
+                    <li>Apache Flink</li>
+                    <li>Apache Spark</li>
+                    <li>Google Cloud Dataflow</li>
+                    <li>Local DataRunner</li>
+                </ul>
+            </ul>
+            <img src='img/beam_logo_navbar.png' style=' position: absolute; right: 0px; bottom: 0px; width: 30%; height: 30%; margin: 0px, 0px, 0px, 0px; border: none; background: none;box-shadow: none; '/><br/>
+        </section>
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+            <h3>The Apache Beam Vision</h3>
+            <div style="float: left; width: 49%">
+                <ul>
+                    <li>End Users: Create pipelines in a familiar language </li>
+                    <li>SDK Writers: Make Beam concepts available in new languages</li>
+                    <li>Runner Writers: Support Beam pipelines in distributed processing environments</li>
+                </ul>
+            </div>
+            <div style="float: right; width: 49%">
+                <img src='img/beam-model.png' style='height: auto; margin: 0px, 0px, 0px, 0px; border: none; background: none;box-shadow: none; '/>
+            </div>
+        </section>
+<!--        <section data-background-image="img/ZsMwlm2-yellowish.jpg">-->
+<!--            <h3>Portable Beam Architecture Overview</h3>-->
+<!--            <img src='img/beam1.png' style='height: auto; margin: 0px, 0px, 0px, 0px; border: none; background: none;box-shadow: none; '/>-->
+<!--        </section>-->
+
+        <section data-background-image="img/ZsMwlm2-greenish.jpg">
+            <h3>Weak Supervision Training Pipeline</h3>
+            <img src='img/snorkel_training_flow.png' style='max-width: 65%; border: none; background: none;box-shadow: none; '/>
+        </section>
+
+         <section data-background-image="img/ZsMwlm2-blueish.jpg">
+             <h4>Complete Pipeline (Beam)</h4>
+                <pre><code data-trim data-noescape>
+  with beam.Pipeline(options=pipeline_options) as p:
+    weak_model = (p | "Read Unlabelled Data" >> beam.io.ReadFromText("youtube_comments.txt")
+                   | "Apply Labeling Functions" >> beam.ParDo(LFFn.LearningFunctionFn())
+                   | "GroupBy" >> beam.GroupByKey()
+                   | "Apply Labeling Model to minimize inaccuracies"
+                       "and noisy labels" >> beam.ParDo(ApplyLFModel(known_args.models))
+                   | beam.io.WriteToText(known_args.output)
+</code></pre>
+         </section>
+
+<!--        <section data-background-image="img/ZsMwlm2-greenish.jpg">-->
+<!--            <h3>Future Work</h3>-->
+<!--            <ul>-->
+<!--                <li>Train NMT models on real time streams</li>-->
+<!--                <li>Ideally ingest 2 similar streams in different languages to train NMT models</li>-->
+<!--                <li>Definitely feasible with Apache Flink Stateful Stream Processing</li>-->
+<!--                <li>Possible to do both Training and Inference using Flink's Broadcast State</li>-->
+<!--            </ul>-->
+<!--        </section>-->
+        <section data-background-image="img/ZsMwlm2.jpg">
+          <h2>Links</h2>
+          <ul>
+            <li>Snorkel: https://www.snorkel.org/</li>
+            <li>Slides: https://smarthi.github.io/FOSDEM-2020-Weak-Supervision-on-Apache-Beam/index.html#/</li>
+          </ul>
+        </section>
+        <section data-background-image="img/ZsMwlm2.jpg">
+          <h2>Gibt es Fragen ???</h2>
+        </section>
+
+			</div>
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.js"></script>
+
+		<script>
+			// More info about config & dependencies:
+			// - https://github.com/hakimel/reveal.js#configuration
+			// - https://github.com/hakimel/reveal.js#dependencies
+			Reveal.initialize({
+        controls: false,
+        progress: true,
+        history: true,
+        center: true,
+        slideNumber: true,
+        transition: 'slide', // none/fade/slide/convex/concave/zoom
+        keyboard: true,
+        touch: true,
+        loop: false,
+        fragments: true,
+				dependencies: [
+					{ src: 'plugin/markdown/marked.js' },
+					{ src: 'plugin/markdown/markdown.js' },
+					{ src: 'plugin/notes/notes.js', async: true },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } }
+				]
+			});
+		</script>
+	</body>
+</html>
